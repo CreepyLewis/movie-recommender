@@ -3,40 +3,53 @@ import requests
 import difflib
 
 # -----------------------------
-# TMDB API configuration
+# TMDB API config
 # -----------------------------
 TMDB_API_KEY = "YOUR_TMDB_API_KEY"  # Replace with your TMDB API key
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w300"
 TMDB_IMAGE_ICON = "https://image.tmdb.org/t/p/w200"
 
 # -----------------------------
-# Helper functions
+# Helper Functions
 # -----------------------------
-def search_movie_fuzzy(movie_name):
-    """Search TMDB for a movie, with fuzzy matching fallback"""
-    url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={movie_name}"
+def fetch_movies_by_genre(genre_id, page=1):
+    """Fetch popular movies in a genre (paginated for infinite scroll)"""
+    url = f"https://api.themoviedb.org/3/discover/movie?api_key={TMDB_API_KEY}&with_genres={genre_id}&sort_by=popularity.desc&page={page}"
+    data = requests.get(url).json().get("results", [])
+    movies = []
+    for m in data:
+        movies.append({
+            "title": m["title"],
+            "poster": TMDB_IMAGE_ICON + m["poster_path"] if m.get("poster_path") else None,
+            "id": m["id"],
+            "rating": m.get("vote_average"),
+            "year": m.get("release_date", "")[:4]
+        })
+    return movies
+
+def search_movie_suggestions(query, limit=10):
+    """Return movie suggestions as user types (fuzzy)"""
+    url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={query}"
     results = requests.get(url).json().get("results", [])
-    if results:
-        titles = [r["title"] for r in results]
-        closest = difflib.get_close_matches(movie_name, titles, n=1)
-        if closest:
-            for r in results:
-                if r["title"] == closest[0]:
-                    return r
-        return results[0]  # fallback: first result
-    return None
+    suggestions = []
+    for m in results[:limit]:
+        suggestions.append({
+            "title": m["title"],
+            "id": m["id"],
+            "poster": TMDB_IMAGE_ICON + m["poster_path"] if m.get("poster_path") else None
+        })
+    return suggestions
 
 def get_movie_details(movie_id):
-    """Get detailed movie info: rating, overview, trailer"""
+    """Get detailed info with trailer"""
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&append_to_response=videos,recommendations"
     data = requests.get(url).json()
     
-    # Trailer
+    # Trailer URL
     trailer_url = None
-    videos = data.get("videos", {}).get("results", [])
-    for v in videos:
+    for v in data.get("videos", {}).get("results", []):
         if v["type"] == "Trailer" and v["site"] == "YouTube":
-            trailer_url = f"https://www.youtube.com/embed/{v['key']}"
+            trailer_url = f"https://www.youtube.com/watch?v={v['key']}"
             break
 
     # Recommendations
@@ -53,25 +66,13 @@ def get_movie_details(movie_id):
         "poster": TMDB_IMAGE_BASE + data["poster_path"] if data.get("poster_path") else None,
         "rating": data.get("vote_average"),
         "overview": data.get("overview"),
+        "year": data.get("release_date", "")[:4],
         "trailer": trailer_url,
         "recommendations": recs
     }
 
-def fetch_movies_by_genre(genre_id, limit=12):
-    """Fetch popular movies in a genre"""
-    url = f"https://api.themoviedb.org/3/discover/movie?api_key={TMDB_API_KEY}&with_genres={genre_id}&sort_by=popularity.desc"
-    data = requests.get(url).json().get("results", [])
-    movies = []
-    for m in data[:limit]:
-        movies.append({
-            "title": m["title"],
-            "poster": TMDB_IMAGE_ICON + m["poster_path"] if m.get("poster_path") else None,
-            "id": m["id"]
-        })
-    return movies
-
 # -----------------------------
-# TMDB Genre IDs
+# TMDB Genres (popular)
 # -----------------------------
 GENRES = {
     "Action": 28,
@@ -87,82 +88,129 @@ GENRES = {
 }
 
 # -----------------------------
-# Streamlit UI
+# Streamlit Setup
 # -----------------------------
-st.set_page_config(page_title="🎬 MovieBox", layout="wide")
-st.markdown("<h1 style='text-align:center;'>🎬 MovieBox - Netflix Style</h1>", unsafe_allow_html=True)
+st.set_page_config(page_title="🎬 Creepy-Movie Recommendation", layout="wide")
+st.markdown(
+    """
+    <style>
+    /* Dark Netflix-like background */
+    .reportview-container, .main {
+        background-color: #141414;
+        color: white;
+    }
+    /* Scrollable horizontal row */
+    .scroll-row {
+        display:flex;
+        overflow-x:auto;
+        padding:10px 0;
+    }
+    /* Poster hover effect */
+    .poster-container {
+        position: relative;
+        margin-right: 10px;
+        flex:0 0 auto;
+    }
+    .poster-container img {
+        border-radius: 5px;
+        transition: transform 0.3s;
+    }
+    .poster-container img:hover {
+        transform: scale(1.1);
+    }
+    .poster-info {
+        position:absolute;
+        bottom:0;
+        left:0;
+        width:100%;
+        background: rgba(0,0,0,0.7);
+        color:white;
+        text-align:center;
+        font-size:12px;
+        padding:3px;
+        opacity:0;
+        transition: opacity 0.3s;
+        border-radius: 0 0 5px 5px;
+    }
+    .poster-container:hover .poster-info {
+        opacity:1;
+    }
+    a {color:white; text-decoration:none;}
+    </style>
+    """, unsafe_allow_html=True
+)
+
+st.markdown("<h1 style='text-align:center;'>🎬 Creepy-Movie Recommendation</h1>", unsafe_allow_html=True)
 
 # -----------------------------
-# Search Section
+# Search Box with Suggestions
 # -----------------------------
 search_query = st.text_input("Search for a movie:")
 
-selected_movie_details = None
-
+selected_movie = None
 if search_query:
-    movie = search_movie_fuzzy(search_query)
-    if movie:
-        selected_movie_details = get_movie_details(movie["id"])
+    suggestions = search_movie_suggestions(search_query)
+    if suggestions:
+        cols = st.columns(min(len(suggestions), 5))
+        for i, movie in enumerate(suggestions[:5]):
+            with cols[i]:
+                if movie["poster"]:
+                    st.image(movie["poster"], width=120)
+                if st.button(movie["title"], key=movie["id"]):
+                    selected_movie = get_movie_details(movie["id"])
     else:
-        st.write("Movie not found. Please check the spelling.")
+        st.write("No suggestions found.")
 
 # -----------------------------
-# Display selected movie details
+# Display Selected Movie Details
 # -----------------------------
-if selected_movie_details:
-    st.markdown(f"## 🎥 {selected_movie_details['title']}")
-    if selected_movie_details['poster']:
-        st.image(selected_movie_details['poster'], width=300)
-    st.markdown(f"**Rating:** {selected_movie_details['rating']} / 10")
-    st.markdown(f"**Overview:** {selected_movie_details['overview']}")
-    
-    if selected_movie_details['trailer']:
-        st.markdown("**Trailer:**")
-        st.video(selected_movie_details['trailer'])
-    
-    # Display recommendations for selected movie
-    if selected_movie_details['recommendations']:
+if selected_movie:
+    st.markdown(f"## 🎥 {selected_movie['title']} ({selected_movie['year']})")
+    if selected_movie['poster']:
+        st.image(selected_movie['poster'], width=300)
+    st.markdown(f"**Rating:** {selected_movie['rating']} / 10")
+    st.markdown(f"**Overview:** {selected_movie['overview']}")
+    if selected_movie['trailer']:
+        if st.button("Watch Trailer"):
+            st.video(selected_movie['trailer'])
+    # Recommendations
+    if selected_movie['recommendations']:
         st.markdown("### You might also like:")
-        scroll_html = "<div style='display:flex; overflow-x:auto;'>"
-        for rec in selected_movie_details['recommendations']:
+        scroll_html = "<div class='scroll-row'>"
+        for rec in selected_movie['recommendations']:
             poster_html = f"""
-            <div style='margin-right:10px; text-align:center; flex:0 0 auto;'>
-                <a href="?movie_id={rec['id']}"><img src='{rec['poster']}' width='150'></a><br>
-                <span style='font-size:14px;'>{rec['title']}</span>
+            <div class='poster-container'>
+                <a href='?movie_id={rec['id']}'>
+                    <img src='{rec['poster']}' width='150'>
+                    <div class='poster-info'>{rec['title']}</div>
+                </a>
             </div>
-            """ if rec['poster'] else f"<div style='margin-right:10px;'>{rec['title']}</div>"
+            """
             scroll_html += poster_html
         scroll_html += "</div>"
         st.markdown(scroll_html, unsafe_allow_html=True)
 
 # -----------------------------
-# Netflix-style genre rows
+# Netflix-style Genre Rows
 # -----------------------------
 st.write("---")
-st.markdown("## Browse by Genre")
+st.markdown("<h2>Browse by Genre</h2>", unsafe_allow_html=True)
 
 for genre_name, genre_id in GENRES.items():
     st.markdown(f"### {genre_name}")
-    movies_in_genre = fetch_movies_by_genre(genre_id, limit=12)
+    page = 1
+    movies_in_genre = fetch_movies_by_genre(genre_id, page=page)
     if movies_in_genre:
-        scroll_html = "<div style='display:flex; overflow-x:auto;'>"
+        scroll_html = "<div class='scroll-row'>"
         for m in movies_in_genre:
             poster_html = f"""
-            <div style='margin-right:10px; text-align:center; flex:0 0 auto;'>
-                <a href="?movie_id={m['id']}"><img src='{m['poster']}' width='150'></a><br>
-                <span style='font-size:14px;'>{m['title']}</span>
+            <div class='poster-container'>
+                <a href='?movie_id={m['id']}'>
+                    <img src='{m['poster']}' width='150'>
+                    <div class='poster-info'>{m['title']} ({m['year']}) | ⭐{m['rating']}</div>
+                </a>
             </div>
-            """ if m['poster'] else f"<div style='margin-right:10px;'>{m['title']}</div>"
+            """
             scroll_html += poster_html
         scroll_html += "</div>"
         st.markdown(scroll_html, unsafe_allow_html=True)
-
-# -----------------------------
-# Handle URL click for recommendations (Optional)
-# -----------------------------
-import streamlit.components.v1 as components
-params = st.experimental_get_query_params()
-if "movie_id" in params:
-    movie_id = int(params["movie_id"][0])
-    selected_movie_details = get_movie_details(movie_id)
-    st.experimental_rerun()
