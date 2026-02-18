@@ -156,3 +156,12 @@ for i, movie in enumerate(movies[:10]):
 if st.button("Load More"):
     st.session_state.page += 1
     st.rerun()
+def get_trailer(movie_id):
+    url = f"{BASE_URL}/movie/{movie_id}/videos"
+    params = {"api_key": API_KEY}
+    response = requests.get(url, params=params).json()
+
+    for video in response.get("results", []):
+        if video["type"] == "Trailer" and video["site"] == "YouTube":
+            return f"https://www.youtube.com/watch?v={video['key']}"
+    return None
