@@ -69,14 +69,25 @@ def get_watch_providers(movie_id):
 # =========================
 def display_row(title, movies):
     st.subheader(title)
+
     cols = st.columns(6)
+
     for i, movie in enumerate(movies[:12]):
         if movie.get("poster_path"):
             with cols[i % 6]:
-                poster = IMAGE_URL + movie["poster_path"]
-                if st.button("", key=f"{title}_{movie['id']}"):
-                    st.session_state.selected = movie
-                st.image(poster)
+
+                poster_url = IMAGE_URL + movie["poster_path"]
+
+                # clickable poster using markdown
+                if st.markdown(
+                    f"""
+                    <a href="?movie_id={movie['id']}">
+                        <img src="{poster_url}" width="100%">
+                    </a>
+                    """,
+                    unsafe_allow_html=True
+                ):
+                    pass
 
 # =========================
 # SEARCH BAR
