@@ -25,23 +25,19 @@ h1,h2,h3,h4 {
 }
 img {
     border-radius: 10px;
-    transition: 0.3s;
+    transition: transform 0.3s;
 }
 img:hover {
     transform: scale(1.08);
+    cursor: pointer;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🎬 Creepy Movie Recommendation")
-query_params = st.query_params
-
-if "movie_id" in query_params:
-    selected_id = int(query_params["movie_id"])
-    st.session_state.selected_id = selected_id
 
 # =========================
-# API FUNCTIONS
+# HELPER FUNCTIONS
 # =========================
 def get_movies(endpoint):
     url = f"{BASE_URL}{endpoint}"
@@ -72,32 +68,41 @@ def get_watch_providers(movie_id):
 # =========================
 # DISPLAY ROW FUNCTION
 # =========================
-
 def display_row(title, movies):
     st.subheader(title)
     n_cols = min(6, len(movies))
     cols = st.columns(n_cols)
-
+    
     for i, movie in enumerate(movies[:12]):
         if movie.get("poster_path"):
             poster_url = IMAGE_URL + movie["poster_path"]
             with cols[i % n_cols]:
-                # Use st.markdown with clickable div
                 st.markdown(
                     f"""
                     <div style="cursor:pointer;" onclick="
                         window.location.href='?movie_id={movie['id']}';
                     ">
-                        <img src="{poster_url}" width="100%" style="border-radius:10px; transition: transform 0.3s;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';">
+                        <img src="{poster_url}" width="100%">
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
+
 # =========================
 # SEARCH BAR
 # =========================
 query = st.text_input("Search movies...")
 
+# =========================
+# HANDLE QUERY PARAMS
+# =========================
+query_params = st.experimental_get_query_params()
+if "movie_id" in query_params:
+    st.session_state.selected_id = int(query_params["movie_id"])
+
+# =========================
+# SHOW SEARCH OR GENRE ROWS
+# =========================
 if query:
     movies = search_movies(query)
     if movies:
@@ -105,9 +110,6 @@ if query:
     else:
         st.warning("No movies found.")
 else:
-    # =========================
-    # NETFLIX STYLE ROWS
-    # =========================
     popular = get_movies("/movie/popular")
     action = get_movies("/discover/movie?with_genres=28")
     comedy = get_movies("/discover/movie?with_genres=35")
@@ -126,53 +128,52 @@ else:
 if "selected_id" in st.session_state:
     movie_id = st.session_state.selected_id
 
-    # fetch fresh details
-    movie = requests.get(
-        f"{BASE_URL}/movie/{movie_id}",
-        params={"api_key": TMDB_API_KEY}
-    ).json()
+    # fetch movie details
+    movie = requests.get(f"{BASE_URL}/movie/{movie_id}", params={"api_key": TMDB_API_KEY}).json()
     st.divider()
-    st.subheader(movie["title"])
-    st.write(f"⭐ Rating: {movie['vote_average']}")
-    st.write(f"📅 Release: {movie['release_date']}")
-    st.write(movie["overview"])
+    st.subheader(f"{movie['title']} ({movie.get('release_date','')[:4]})")
+    st.write(f"⭐ Rating: {movie['vote_average']} | 📅 Release: {movie['release_date']}")
+    st.write(movie.get("overview", "No description available."))
 
-    # 🎬 Embedded Trailer
-    trailer = get_trailer(movie["id"])
+    # Trailer
+    trailer = get_trailer(movie_id)
     if trailer:
         st.markdown("### ▶ Trailer")
         st.markdown(
-            f"""
-            <iframe width="100%" height="400"
-            src="{trailer}"
-            frameborder="0"
-            allowfullscreen>
-            </iframe>
-            """,
+            f'<iframe width="100%" height="400" src="{trailer}" frameborder="0" allowfullscreen></iframe>',
             unsafe_allow_html=True
         )
 
-    # 📺 Watch Providers
-    providers = get_watch_providers(movie["id"])
+    # Watch Providers
+    providers = get_watch_providers(movie_id)
     if providers:
         st.markdown("### 📺 Available in Kenya")
-
         if "flatrate" in providers:
-            st.write("Streaming:")
+            st.write("**Streaming:**")
             cols = st.columns(len(providers["flatrate"]))
             for i, p in enumerate(providers["flatrate"]):
                 with cols[i]:
                     st.image(LOGO_URL + p["logo_path"])
                     if providers.get("link"):
                         st.markdown(f"[Watch Now]({providers['link']})")
-
         if "rent" in providers:
-            st.write("Rent:")
+            st.write("**Rent:**")
             cols = st.columns(len(providers["rent"]))
             for i, p in enumerate(providers["rent"]):
                 with cols[i]:
                     st.image(LOGO_URL + p["logo_path"])
                     if providers.get("link"):
-                        st.markdown(f"[Watch Now]({providers['link']})")
+                        st.markdown(f"[Rent Now]({providers['link']})")
     else:
         st.write("❌ Not available in Kenya.")
+
+    # Cast
+    cast_res = requests.get(f"{BASE_URL}/movie/{movie_id}/credits", params={"api_key": TMDB_API_KEY}).json()
+    if "cast" in cast_res:
+        st.markdown("### 🎭 Top Cast")
+        cast_cols = st.columns(6)
+        for i, actor in enumerate(cast_res["cast"][:12]):
+            with cast_cols[i % 6]:
+                if actor.get("profile_path"):
+                    st.image(IMAGE_URL + actor["profile_path"], use_column_width=True)
+                st.caption(actor["name"])
