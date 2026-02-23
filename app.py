@@ -123,6 +123,7 @@ if "selected_movie" in st.session_state:
     movie_id = st.session_state.selected_movie
     details = get_movie_details(movie_id)
     trailer_url = get_trailer(movie_id)
+    providers = get_watch_providers_kenya(movie_id)
 
     st.divider()
     st.subheader(details["title"])
