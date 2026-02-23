@@ -34,6 +34,11 @@ img:hover {
 """, unsafe_allow_html=True)
 
 st.title("🎬 Creepy Movie Recommendation")
+query_params = st.query_params
+
+if "movie_id" in query_params:
+    selected_id = int(query_params["movie_id"])
+    st.session_state.selected_id = selected_id
 
 # =========================
 # API FUNCTIONS
