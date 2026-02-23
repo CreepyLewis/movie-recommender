@@ -72,28 +72,27 @@ def get_watch_providers(movie_id):
 # =========================
 # DISPLAY ROW FUNCTION
 # =========================
+# =========================
+# DISPLAY ROW FUNCTION
+# =========================
 def display_row(title, movies):
     st.subheader(title)
-
-    cols = st.columns(6)
+    n_cols = min(6, len(movies))
+    cols = st.columns(n_cols)
 
     for i, movie in enumerate(movies[:12]):
         if movie.get("poster_path"):
-            with cols[i % 6]:
+            poster_url = IMAGE_URL + movie["poster_path"]
+            with cols[i % n_cols]:
+                # Button for each poster (transparent label)
+                if st.button("", key=f"movie_{movie['id']}", help=movie["title"]):
+                    # Set query param and session state
+                    st.experimental_set_query_params(movie_id=movie["id"])
+                    st.session_state.selected_id = movie["id"]
+                    st.experimental_rerun()
 
-                poster_url = IMAGE_URL + movie["poster_path"]
-
-                # clickable poster using markdown
-                if st.markdown(
-                    f"""
-                    <a href="?movie_id={movie['id']}">
-                        <img src="{poster_url}" width="100%">
-                    </a>
-                    """,
-                    unsafe_allow_html=True
-                ):
-                    pass
-
+                # Show poster image
+                st.image(poster_url, use_column_width=True)
 # =========================
 # SEARCH BAR
 # =========================
