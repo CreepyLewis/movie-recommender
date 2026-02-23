@@ -76,39 +76,12 @@ def get_trailer(movie_id):
             return f"https://www.youtube.com/watch?v={video['key']}"
     return None
 
-st.subheader("📺 Where to Watch in Kenya")
-
-if providers:
-
-    if "flatrate" in providers:
-        st.write("Subscription:")
-        for p in providers["flatrate"]:
-            st.write("•", p["provider_name"])
-
-    if "rent" in providers:
-        st.write("Rent:")
-        for p in providers["rent"]:
-            st.write("•", p["provider_name"])
-
-    if "buy" in providers:
-        st.write("Buy:")
-        for p in providers["buy"]:
-            st.write("•", p["provider_name"])
-
-else:
-    st.warning("Not available in Kenya.")
-# -----------------------------
-# WATCH PROVIDERS (KENYA)
-# -----------------------------
 def get_watch_providers_kenya(movie_id):
     url = f"{BASE_URL}/movie/{movie_id}/watch/providers"
     params = {"api_key": API_KEY}
-
     response = requests.get(url, params=params).json()
+    return response.get("results", {}).get("KE", {})
 
-    providers = response.get("results", {}).get("KE", {})
-
-    return providers
 # -----------------------------
 # SEARCH SECTION
 # -----------------------------
@@ -120,12 +93,10 @@ if query:
 
     if results:
         st.subheader("Search Results")
-
         cols = st.columns(5)
 
         for i, movie in enumerate(results[:10]):
             with cols[i % 5]:
-
                 if movie.get("poster_path"):
                     if st.button(" ", key=f"poster_{movie['id']}"):
                         st.session_state.selected_movie = movie["id"]
@@ -165,7 +136,32 @@ if "selected_movie" in st.session_state:
         else:
             st.warning("Trailer not available.")
 
-    # Similar Movies
+    # -----------------------------
+    # WATCH PROVIDERS SECTION
+    # -----------------------------
+    st.subheader("📺 Where to Watch in Kenya")
+
+    if providers:
+        if "flatrate" in providers:
+            st.write("Subscription:")
+            for p in providers["flatrate"]:
+                st.write("•", p["provider_name"])
+
+        if "rent" in providers:
+            st.write("Rent:")
+            for p in providers["rent"]:
+                st.write("•", p["provider_name"])
+
+        if "buy" in providers:
+            st.write("Buy:")
+            for p in providers["buy"]:
+                st.write("•", p["provider_name"])
+    else:
+        st.warning("Not available in Kenya.")
+
+    # -----------------------------
+    # SIMILAR MOVIES
+    # -----------------------------
     st.subheader("🤖 Similar Movies")
     similar = get_similar(movie_id)
 
