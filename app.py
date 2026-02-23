@@ -124,8 +124,14 @@ else:
 # =========================
 # MOVIE DETAILS SECTION
 # =========================
-if "selected" in st.session_state:
-    movie = st.session_state.selected
+if "selected_id" in st.session_state:
+    movie_id = st.session_state.selected_id
+
+    # fetch fresh details
+    movie = requests.get(
+        f"{BASE_URL}/movie/{movie_id}",
+        params={"api_key": TMDB_API_KEY}
+    ).json()
     st.divider()
     st.subheader(movie["title"])
     st.write(f"⭐ Rating: {movie['vote_average']}")
