@@ -77,6 +77,18 @@ def get_trailer(movie_id):
     return None
 
 # -----------------------------
+# WATCH PROVIDERS (KENYA)
+# -----------------------------
+def get_watch_providers_kenya(movie_id):
+    url = f"{BASE_URL}/movie/{movie_id}/watch/providers"
+    params = {"api_key": API_KEY}
+
+    response = requests.get(url, params=params).json()
+
+    providers = response.get("results", {}).get("KE", {})
+
+    return providers
+# -----------------------------
 # SEARCH SECTION
 # -----------------------------
 query = st.text_input("🔍 Search for a movie")
