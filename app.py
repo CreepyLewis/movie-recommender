@@ -76,6 +76,27 @@ def get_trailer(movie_id):
             return f"https://www.youtube.com/watch?v={video['key']}"
     return None
 
+st.subheader("📺 Where to Watch in Kenya")
+
+if providers:
+
+    if "flatrate" in providers:
+        st.write("Subscription:")
+        for p in providers["flatrate"]:
+            st.write("•", p["provider_name"])
+
+    if "rent" in providers:
+        st.write("Rent:")
+        for p in providers["rent"]:
+            st.write("•", p["provider_name"])
+
+    if "buy" in providers:
+        st.write("Buy:")
+        for p in providers["buy"]:
+            st.write("•", p["provider_name"])
+
+else:
+    st.warning("Not available in Kenya.")
 # -----------------------------
 # WATCH PROVIDERS (KENYA)
 # -----------------------------
