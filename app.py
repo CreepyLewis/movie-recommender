@@ -25,23 +25,20 @@ h1,h2,h3,h4 {
 }
 img {
     border-radius: 10px;
-    transition: transform 0.3s;
+    transition: 0.3s;
 }
 img:hover {
     transform: scale(1.08);
-    cursor: pointer;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🎬 Creepy Movie Recommendation")
+query_params = st.query_params
 
-# =========================
-# SYNC QUERY PARAMS TO SESSION
-# =========================
-query_params = st.experimental_get_query_params()
 if "movie_id" in query_params:
-    st.session_state.selected_id = int(query_params["movie_id"])
+    selected_id = int(query_params["movie_id"])
+    st.session_state.selected_id = selected_id
 
 # =========================
 # API FUNCTIONS
@@ -72,15 +69,10 @@ def get_watch_providers(movie_id):
     data = res.json().get("results", {})
     return data.get("KE")
 
-def get_actors(movie_id, limit=6):
-    url = f"{BASE_URL}/movie/{movie_id}/credits"
-    res = requests.get(url, params={"api_key": TMDB_API_KEY})
-    cast = res.json().get("cast", [])
-    return cast[:limit]  # top actors
-
 # =========================
 # DISPLAY ROW FUNCTION
 # =========================
+
 def display_row(title, movies):
     st.subheader(title)
     n_cols = min(6, len(movies))
@@ -90,21 +82,17 @@ def display_row(title, movies):
         if movie.get("poster_path"):
             poster_url = IMAGE_URL + movie["poster_path"]
             with cols[i % n_cols]:
-                # Clickable poster via JS (same tab)
+                # Use st.markdown with clickable div
                 st.markdown(
                     f"""
                     <div style="cursor:pointer;" onclick="
                         window.location.href='?movie_id={movie['id']}';
                     ">
-                        <img src="{poster_url}" width="100%" 
-                             style="border-radius:10px; transition: transform 0.3s;" 
-                             onmouseover="this.style.transform='scale(1.08)';" 
-                             onmouseout="this.style.transform='scale(1)';">
+                        <img src="{poster_url}" width="100%" style="border-radius:10px; transition: transform 0.3s;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';">
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
-
 # =========================
 # SEARCH BAR
 # =========================
@@ -138,38 +126,34 @@ else:
 if "selected_id" in st.session_state:
     movie_id = st.session_state.selected_id
 
-    # Fetch movie details
-    movie = requests.get(f"{BASE_URL}/movie/{movie_id}", params={"api_key": TMDB_API_KEY}).json()
+    # fetch fresh details
+    movie = requests.get(
+        f"{BASE_URL}/movie/{movie_id}",
+        params={"api_key": TMDB_API_KEY}
+    ).json()
     st.divider()
     st.subheader(movie["title"])
     st.write(f"⭐ Rating: {movie['vote_average']}")
     st.write(f"📅 Release: {movie['release_date']}")
     st.write(movie["overview"])
 
-    # 🎬 Trailer
-    trailer = get_trailer(movie_id)
+    # 🎬 Embedded Trailer
+    trailer = get_trailer(movie["id"])
     if trailer:
         st.markdown("### ▶ Trailer")
         st.markdown(
             f"""
-            <iframe width="100%" height="400" src="{trailer}" frameborder="0" allowfullscreen></iframe>
+            <iframe width="100%" height="400"
+            src="{trailer}"
+            frameborder="0"
+            allowfullscreen>
+            </iframe>
             """,
             unsafe_allow_html=True
         )
 
-    # 🎭 Actors
-    cast = get_actors(movie_id)
-    if cast:
-        st.markdown("### 🎭 Top Cast")
-        cols = st.columns(len(cast))
-        for i, actor in enumerate(cast):
-            with cols[i]:
-                if actor.get("profile_path"):
-                    st.image(IMAGE_URL + actor["profile_path"])
-                st.write(actor["name"])
-
     # 📺 Watch Providers
-    providers = get_watch_providers(movie_id)
+    providers = get_watch_providers(movie["id"])
     if providers:
         st.markdown("### 📺 Available in Kenya")
 
