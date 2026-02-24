@@ -4,7 +4,7 @@ import requests
 # ==================================
 # CONFIG
 # ==================================
-st.set_page_config(page_title="Creepy - Kenya Movie Discovery", layout="wide")
+st.set_page_config(page_title="Kenya Movie Discovery", layout="wide")
 
 API_KEY = st.secrets["TMDB_API_KEY"]
 BASE_URL = "https://api.themoviedb.org/3"
