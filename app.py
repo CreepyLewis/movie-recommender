@@ -4,11 +4,17 @@ import requests
 # ==============================
 # CONFIG
 # ==============================
-st.set_page_config(page_title="Kenya Movie Discovery Engine", layout="wide")
+st.set_page_config(page_title="Creepy - Kenya Movie Discovery", layout="wide")
 
-API_KEY = "YOUR_TMDB_API_KEY"
+try:
+    API_KEY = st.secrets["TMDB_API_KEY"]
+except:
+    st.error("TMDB API Key not found. Add it in Streamlit secrets.")
+    st.stop()
+
 BASE_URL = "https://api.themoviedb.org/3"
 IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
+LOGO_BASE = "https://image.tmdb.org/t/p/w200"
 
 # ==============================
 # SESSION STATE
@@ -17,45 +23,51 @@ if "selected_movie" not in st.session_state:
     st.session_state.selected_movie = None
 
 # ==============================
-# FUNCTIONS
+# SAFE API FUNCTIONS
 # ==============================
 
+def safe_request(url, params):
+    try:
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error("TMDB API Error. Check your API key.")
+            return {}
+    except:
+        st.error("Network error connecting to TMDB.")
+        return {}
+
 def get_popular_movies():
-    url = f"{BASE_URL}/movie/popular"
-    params = {"api_key": API_KEY}
-    return requests.get(url, params=params).json()["results"]
+    data = safe_request(f"{BASE_URL}/movie/popular", {"api_key": API_KEY})
+    return data.get("results", [])
 
 def get_movies_by_genre(genre_id):
-    url = f"{BASE_URL}/discover/movie"
-    params = {
-        "api_key": API_KEY,
-        "with_genres": genre_id
-    }
-    return requests.get(url, params=params).json()["results"]
+    data = safe_request(
+        f"{BASE_URL}/discover/movie",
+        {"api_key": API_KEY, "with_genres": genre_id}
+    )
+    return data.get("results", [])
 
 def get_movie_details(movie_id):
-    url = f"{BASE_URL}/movie/{movie_id}"
-    params = {
-        "api_key": API_KEY,
-        "append_to_response": "credits,videos"
-    }
-    return requests.get(url, params=params).json()
+    return safe_request(
+        f"{BASE_URL}/movie/{movie_id}",
+        {"api_key": API_KEY, "append_to_response": "credits,videos"}
+    )
 
 def get_watch_providers(movie_id):
-    url = f"{BASE_URL}/movie/{movie_id}/watch/providers"
-    params = {"api_key": API_KEY}
-    data = requests.get(url, params=params).json()
-    
-    if "results" in data and "KE" in data["results"]:
-        return data["results"]["KE"]
-    return None
+    data = safe_request(
+        f"{BASE_URL}/movie/{movie_id}/watch/providers",
+        {"api_key": API_KEY}
+    )
+    return data.get("results", {}).get("KE")
 
 # ==============================
 # UI HEADER
 # ==============================
 
-st.title("🎬 Kenya’s Movie Discovery Engine")
-st.write("Find where to watch movies in Kenya 🇰🇪")
+st.title("🎬 Creepy - Kenya’s Movie Discovery Engine 🇰🇪")
+st.write("Find where to watch movies in Kenya")
 
 # ==============================
 # POPULAR MOVIES
@@ -69,14 +81,13 @@ cols = st.columns(5)
 
 for i, movie in enumerate(popular_movies[:10]):
     with cols[i % 5]:
-        if movie["poster_path"]:
+        if movie.get("poster_path"):
             st.image(IMAGE_BASE + movie["poster_path"])
-        
-        if st.button(movie["title"], key=f"popular_{movie['id']}"):
+        if st.button(movie.get("title", "Unknown"), key=f"popular_{movie['id']}"):
             st.session_state.selected_movie = movie["id"]
 
 # ==============================
-# GENRE SECTIONS
+# GENRES
 # ==============================
 
 genres = {
@@ -93,91 +104,85 @@ for genre_name, genre_id in genres.items():
 
     for i, movie in enumerate(movies[:5]):
         with cols[i % 5]:
-            if movie["poster_path"]:
+            if movie.get("poster_path"):
                 st.image(IMAGE_BASE + movie["poster_path"])
-            
-            if st.button(movie["title"], key=f"{genre_id}_{movie['id']}"):
+            if st.button(movie.get("title", "Unknown"), key=f"{genre_id}_{movie['id']}"):
                 st.session_state.selected_movie = movie["id"]
 
 # ==============================
-# MOVIE DETAILS SECTION
+# MOVIE DETAILS
 # ==============================
 
 if st.session_state.selected_movie:
 
     details = get_movie_details(st.session_state.selected_movie)
 
-    st.divider()
-    st.header(details["title"])
-
-    col1, col2 = st.columns([1, 2])
-
-    with col1:
-        if details["poster_path"]:
-            st.image(IMAGE_BASE + details["poster_path"])
-
-    with col2:
-        st.write(details["overview"])
-        st.write(f"⭐ Rating: {details['vote_average']}")
-        st.write(f"⏱ Runtime: {details.get('runtime', 'N/A')} minutes")
-
-    # ==============================
-    # CAST
-    # ==============================
-
-    st.subheader("🎭 Top Cast")
-
-    cast = details["credits"]["cast"][:5]
-
-    for actor in cast:
-        st.write(f"{actor['name']} as {actor['character']}")
-
-    # ==============================
-    # TRAILER
-    # ==============================
-
-    st.subheader("🎬 Trailer")
-
-    videos = details["videos"]["results"]
-    trailer_key = None
-
-    for video in videos:
-        if video["type"] == "Trailer" and video["site"] == "YouTube":
-            trailer_key = video["key"]
-            break
-
-    if trailer_key:
-        st.video(f"https://www.youtube.com/watch?v={trailer_key}")
+    if not details:
+        st.warning("Could not load movie details.")
     else:
-        st.info("Trailer not available.")
+        st.divider()
+        st.header(details.get("title", "Unknown Title"))
 
-    # ==============================
-    # WATCH PROVIDERS (KENYA)
-    # ==============================
+        col1, col2 = st.columns([1, 2])
 
-    st.subheader("📺 Where to Watch in Kenya 🇰🇪")
+        with col1:
+            if details.get("poster_path"):
+                st.image(IMAGE_BASE + details["poster_path"])
 
-    providers = get_watch_providers(st.session_state.selected_movie)
+        with col2:
+            st.write(details.get("overview", "No description available."))
+            st.write(f"⭐ Rating: {details.get('vote_average', 'N/A')}")
+            st.write(f"⏱ Runtime: {details.get('runtime', 'N/A')} minutes")
 
-    if providers:
+        # ==============================
+        # CAST
+        # ==============================
 
-        if "flatrate" in providers:
+        cast = details.get("credits", {}).get("cast", [])[:5]
+
+        if cast:
+            st.subheader("🎭 Top Cast")
+            for actor in cast:
+                st.write(f"{actor.get('name')} as {actor.get('character')}")
+
+        # ==============================
+        # TRAILER
+        # ==============================
+
+        videos = details.get("videos", {}).get("results", [])
+        trailer_key = None
+
+        for video in videos:
+            if video.get("type") == "Trailer" and video.get("site") == "YouTube":
+                trailer_key = video.get("key")
+                break
+
+        st.subheader("🎬 Trailer")
+
+        if trailer_key:
+            st.video(f"https://www.youtube.com/watch?v={trailer_key}")
+        else:
+            st.info("Trailer not available.")
+
+        # ==============================
+        # WATCH PROVIDERS (KENYA)
+        # ==============================
+
+        st.subheader("📺 Available in Kenya 🇰🇪")
+
+        providers = get_watch_providers(st.session_state.selected_movie)
+
+        if providers and "flatrate" in providers:
             for provider in providers["flatrate"]:
-                logo = provider["logo_path"]
-                name = provider["provider_name"]
+                if provider.get("logo_path"):
+                    st.image(LOGO_BASE + provider["logo_path"], width=100)
+                name = provider.get("provider_name")
+                link = providers.get("link")
+                if link:
+                    st.markdown(f"[▶ Watch on {name}]({link})")
+        else:
+            st.warning("Not available on streaming platforms in Kenya.")
 
-                st.image("https://image.tmdb.org/t/p/w200" + logo, width=100)
-                st.markdown(
-                    f"[▶ Watch on {name}]({providers.get('link', '#')})",
-                    unsafe_allow_html=True
-                )
-
-    else:
-        st.warning("Not available on streaming platforms in Kenya.")
-
-    # ==============================
-    # CLOSE BUTTON
-    # ==============================
-
-    if st.button("❌ Close"):
-        st.session_state.selected_movie = None
+        # CLOSE BUTTON
+        if st.button("❌ Close"):
+            st.session_state.selected_movie = None
