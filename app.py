@@ -1,10 +1,10 @@
 import streamlit as st
 import requests
 
-# ==================================
+# ===============================
 # CONFIG
-# ==================================
-st.set_page_config(page_title="Creepy MovieBox – Kenya Movie Discovery", layout="wide")
+# ===============================
+st.set_page_config(page_title="Creepy - Kenya Movie Discovery", layout="wide")
 
 API_KEY = st.secrets["TMDB_API_KEY"]
 BASE_URL = "https://api.themoviedb.org/3"
@@ -12,30 +12,30 @@ IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280"
 LOGO_BASE = "https://image.tmdb.org/t/p/w200"
 
-# ==================================
-# NETFLIX DARK STYLE
-# ==================================
+# ===============================
+# DARK NETFLIX STYLE
+# ===============================
 st.markdown("""
 <style>
 .stApp { background-color: #141414; color: white; }
 h1,h2,h3,h4 { color: white; }
-img { border-radius: 8px; transition: transform 0.3s ease; cursor:pointer; }
+img { border-radius: 8px; transition: transform 0.3s ease; cursor: pointer; }
 img:hover { transform: scale(1.08); }
 </style>
 """, unsafe_allow_html=True)
 
-# ==================================
+# ===============================
 # SESSION STATE
-# ==================================
+# ===============================
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
 if "selected_movie" not in st.session_state:
     st.session_state.selected_movie = None
 
-# ==================================
+# ===============================
 # SAFE REQUEST
-# ==================================
+# ===============================
 def safe_request(url, params):
     try:
         r = requests.get(url, params=params)
@@ -45,9 +45,9 @@ def safe_request(url, params):
     except:
         return {}
 
-# ==================================
+# ===============================
 # API FUNCTIONS
-# ==================================
+# ===============================
 def get_movies(endpoint):
     data = safe_request(f"{BASE_URL}{endpoint}", {"api_key": API_KEY})
     return data.get("results", [])
@@ -72,9 +72,9 @@ def get_watch_providers(movie_id):
     )
     return data.get("results", {}).get("KE")
 
-# ==================================
+# ===============================
 # MOVIE PAGE
-# ==================================
+# ===============================
 if st.session_state.page == "movie":
 
     movie_id = st.session_state.selected_movie
@@ -128,7 +128,6 @@ if st.session_state.page == "movie":
     # Watch Providers
     providers = get_watch_providers(movie_id)
     st.subheader("📺 Available in Kenya 🇰🇪")
-
     if providers and "flatrate" in providers:
         cols = st.columns(len(providers["flatrate"]))
         for i, p in enumerate(providers["flatrate"]):
@@ -140,14 +139,14 @@ if st.session_state.page == "movie":
     else:
         st.warning("Not available in Kenya.")
 
-# ==================================
+# ===============================
 # HOME PAGE
-# ==================================
+# ===============================
 else:
 
-    st.title("🎬 Creepy MovieBox – Kenya Movie Discovery")
+    st.title("🎬 Creepy - Kenya Movie Discovery")
 
-    # SEARCH BAR
+    # Search bar
     query = st.text_input("🔍 Search for a movie")
 
     if query:
@@ -158,8 +157,8 @@ else:
             for i, movie in enumerate(results[:12]):
                 with cols[i % 6]:
                     if movie.get("poster_path"):
-                        # Poster is now clickable
-                        if st.button("", key=f"search_{movie['id']}"):
+                        # Make the poster itself clickable
+                        if st.button("", key=f"search_{movie['id']}", help=movie["title"]):
                             st.session_state.selected_movie = movie["id"]
                             st.session_state.page = "movie"
                             st.rerun()
@@ -177,8 +176,8 @@ else:
             for i, movie in enumerate(movies[:18]):
                 with cols[i % 6]:
                     if movie.get("poster_path"):
-                        # Poster is clickable
-                        if st.button("", key=f"{title}_{movie['id']}"):
+                        # Poster itself clickable
+                        if st.button("", key=f"{title}_{movie['id']}", help=movie["title"]):
                             st.session_state.selected_movie = movie["id"]
                             st.session_state.page = "movie"
                             st.rerun()
