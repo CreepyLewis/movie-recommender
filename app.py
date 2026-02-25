@@ -21,6 +21,7 @@ st.markdown("""
 h1,h2,h3,h4 { color: white; }
 img { border-radius: 8px; transition: transform 0.3s ease; cursor: pointer; }
 img:hover { transform: scale(1.08); }
+button { background-color: #e50914; color: white; border-radius: 5px; padding: 5px 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -80,10 +81,8 @@ if st.session_state.page == "movie":
     movie_id = st.session_state.selected_movie
     movie = get_movie_full(movie_id)
 
-    if st.button("⬅ Back to Home"):
-        st.session_state.page = "home"
-        st.session_state.selected_movie = None
-        st.rerun()
+    # BACK TO HOME BUTTON VISIBLE
+    st.button("⬅ Back to Home", on_click=lambda: [st.session_state.update({"page": "home", "selected_movie": None}), st.experimental_rerun()])
 
     if movie.get("backdrop_path"):
         st.image(BACKDROP_BASE + movie["backdrop_path"], use_container_width=True)
@@ -146,7 +145,7 @@ else:
 
     st.title("🎬 Creepy - Kenya Movie Discovery")
 
-    # Search bar
+    # SEARCH BAR
     query = st.text_input("🔍 Search for a movie")
 
     if query:
@@ -157,12 +156,12 @@ else:
             for i, movie in enumerate(results[:12]):
                 with cols[i % 6]:
                     if movie.get("poster_path"):
-                        # Make the poster itself clickable
-                        if st.button("", key=f"search_{movie['id']}", help=movie["title"]):
-                            st.session_state.selected_movie = movie["id"]
-                            st.session_state.page = "movie"
-                            st.rerun()
                         st.image(IMAGE_BASE + movie["poster_path"])
+                    # VISIBLE VIEW DETAILS BUTTON
+                    if st.button("View Details", key=f"search_{movie['id']}"):
+                        st.session_state.selected_movie = movie["id"]
+                        st.session_state.page = "movie"
+                        st.rerun()
         else:
             st.warning("No movies found.")
 
@@ -176,12 +175,12 @@ else:
             for i, movie in enumerate(movies[:18]):
                 with cols[i % 6]:
                     if movie.get("poster_path"):
-                        # Poster itself clickable
-                        if st.button("", key=f"{title}_{movie['id']}", help=movie["title"]):
-                            st.session_state.selected_movie = movie["id"]
-                            st.session_state.page = "movie"
-                            st.rerun()
                         st.image(IMAGE_BASE + movie["poster_path"])
+                    # VISIBLE VIEW DETAILS BUTTON
+                    if st.button("View Details", key=f"{title}_{movie['id']}"):
+                        st.session_state.selected_movie = movie["id"]
+                        st.session_state.page = "movie"
+                        st.rerun()
 
         display_row("🔥 Popular", "/movie/popular")
         display_row("💥 Action", "/discover/movie?with_genres=28")
