@@ -12,7 +12,7 @@ LOGO_BASE = "https://image.tmdb.org/t/p/w200"
 st.set_page_config(page_title="Creepy Movie Recommendation", layout="wide")
 
 # =========================
-# NETFLIX STYLE
+# NETFLIX DARK UI
 # =========================
 st.markdown("""
 <style>
@@ -20,12 +20,8 @@ st.markdown("""
     background-color: #0e0e0e;
     color: white;
 }
-h1,h2,h3,h4 {
+h1,h2,h3,h4,h5 {
     color: white;
-}
-.movie-card {
-    position: relative;
-    cursor: pointer;
 }
 .movie-card img {
     width: 100%;
@@ -36,17 +32,10 @@ h1,h2,h3,h4 {
     transform: scale(1.05);
 }
 .overlay {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    padding: 10px;
+    position: relative;
+    margin-top: -60px;
+    padding: 8px;
     background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    border-radius: 10px;
-}
-.movie-card:hover .overlay {
-    opacity: 1;
 }
 .overlay h4 {
     margin: 0;
@@ -57,12 +46,11 @@ h1,h2,h3,h4 {
     font-size: 12px;
     color: #ccc;
 }
-.view-btn button {
-    background-color: #e50914 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 6px !important;
-    width: 100%;
+.stButton button {
+    background-color: #e50914;
+    color: white;
+    border-radius: 6px;
+    border: none;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -80,8 +68,7 @@ def safe_get(url, params):
         return {}
 
 def get_movies(endpoint):
-    data = safe_get(f"{BASE_URL}{endpoint}",
-                    {"api_key": TMDB_API_KEY})
+    data = safe_get(f"{BASE_URL}{endpoint}", {"api_key": TMDB_API_KEY})
     return data.get("results", [])
 
 def search_movies(query):
@@ -112,7 +99,7 @@ def get_providers(movie_id):
     return data.get("results", {}).get("KE", {})
 
 # =========================
-# MOVIE ROW
+# DISPLAY ROW
 # =========================
 def display_row(title, endpoint):
     st.subheader(title)
@@ -130,7 +117,7 @@ def display_row(title, endpoint):
 
         with cols[i % 6]:
 
-            # Entire Card Clickable
+            # Entire card clickable
             if st.button("", key=f"card_{movie['id']}"):
                 st.session_state.selected_id = movie["id"]
                 st.rerun()
@@ -145,45 +132,33 @@ def display_row(title, endpoint):
             </div>
             """, unsafe_allow_html=True)
 
-            # Clear Button
+            # View button
             if st.button("View Details", key=f"view_{movie['id']}"):
                 st.session_state.selected_id = movie["id"]
                 st.rerun()
 
 # =========================
-# SEARCH
+# ROUTING LOGIC
 # =========================
-search = st.text_input("🔍 Search for a movie")
 
-if search:
-    results = search_movies(search)
-    if results:
-        display_row("Search Results", f"/search/movie?query={search}")
-    else:
-        st.warning("No movies found.")
-else:
-    display_row("🔥 Popular", "/movie/popular")
-    display_row("💥 Action", "/discover/movie?with_genres=28")
-    display_row("😂 Comedy", "/discover/movie?with_genres=35")
-    display_row("👻 Horror", "/discover/movie?with_genres=27")
-
-# =========================
-# DETAILS PAGE
-# =========================
 if "selected_id" in st.session_state:
+
+    # =========================
+    # DETAILS PAGE
+    # =========================
 
     movie_id = st.session_state.selected_id
     movie = get_movie(movie_id)
 
     if movie:
-        st.divider()
 
-        # Back Button
         if st.button("⬅ Back to Home"):
             del st.session_state.selected_id
             st.rerun()
 
-        col1, col2 = st.columns([1,2])
+        st.divider()
+
+        col1, col2 = st.columns([1, 2])
 
         with col1:
             if movie.get("poster_path"):
@@ -216,7 +191,7 @@ if "selected_id" in st.session_state:
         providers = get_providers(movie_id)
         if providers:
             st.markdown("### 📺 Available in Kenya")
-            for section in ["flatrate","rent","buy"]:
+            for section in ["flatrate", "rent", "buy"]:
                 if section in providers:
                     cols = st.columns(len(providers[section]))
                     for i, p in enumerate(providers[section]):
@@ -224,6 +199,29 @@ if "selected_id" in st.session_state:
                             if p.get("logo_path"):
                                 st.image(LOGO_BASE + p["logo_path"])
                             if providers.get("link"):
-                                st.markdown(f"[Watch Now]({providers['link']})")
+                                st.markdown(
+                                    f"[Watch Now]({providers['link']})"
+                                )
         else:
             st.warning("Not available in Kenya.")
+
+else:
+
+    # =========================
+    # HOME PAGE
+    # =========================
+
+    search = st.text_input("🔍 Search for a movie")
+
+    if search:
+        results = search_movies(search)
+        if results:
+            display_row("Search Results",
+                        f"/search/movie?query={search}")
+        else:
+            st.warning("No movies found.")
+    else:
+        display_row("🔥 Popular", "/movie/popular")
+        display_row("💥 Action", "/discover/movie?with_genres=28")
+        display_row("😂 Comedy", "/discover/movie?with_genres=35")
+        display_row("👻 Horror", "/discover/movie?with_genres=27")
