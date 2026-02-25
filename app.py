@@ -27,7 +27,6 @@ h1,h2,h3,h4 {
 
 .movie-card {
     position: relative;
-    cursor: pointer;
 }
 
 .movie-card img {
@@ -66,36 +65,12 @@ h1,h2,h3,h4 {
     color: #ccc;
 }
 
-.play-icon {
-    position: absolute;
-    top: 40%;
-    left: 45%;
-    font-size: 40px;
-    color: white;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.movie-card:hover .play-icon {
-    opacity: 1;
-}
-
 .view-btn button {
     background-color: #e50914 !important;
     color: white !important;
     border: none !important;
     border-radius: 6px !important;
     width: 100%;
-    margin-top: 5px;
-}
-
-.back-btn button {
-    background-color: #555 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 6px !important;
-    width: 150px;
-    margin-top: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -113,29 +88,35 @@ def safe_get(url, params):
         return {}
 
 def get_movies(endpoint):
-    data = safe_get(f"{BASE_URL}{endpoint}", {"api_key": TMDB_API_KEY})
+    data = safe_get(f"{BASE_URL}{endpoint}",
+                    {"api_key": TMDB_API_KEY})
     return data.get("results", [])
 
 def search_movies(query):
-    data = safe_get(f"{BASE_URL}/search/movie", {"api_key": TMDB_API_KEY, "query": query})
+    data = safe_get(f"{BASE_URL}/search/movie",
+                    {"api_key": TMDB_API_KEY, "query": query})
     return data.get("results", [])
 
 def get_movie(movie_id):
-    return safe_get(f"{BASE_URL}/movie/{movie_id}", {"api_key": TMDB_API_KEY})
+    return safe_get(f"{BASE_URL}/movie/{movie_id}",
+                    {"api_key": TMDB_API_KEY})
 
 def get_trailer(movie_id):
-    data = safe_get(f"{BASE_URL}/movie/{movie_id}/videos", {"api_key": TMDB_API_KEY})
+    data = safe_get(f"{BASE_URL}/movie/{movie_id}/videos",
+                    {"api_key": TMDB_API_KEY})
     for vid in data.get("results", []):
         if vid.get("type") == "Trailer" and vid.get("site") == "YouTube":
             return f"https://www.youtube.com/embed/{vid['key']}"
     return None
 
 def get_cast(movie_id):
-    data = safe_get(f"{BASE_URL}/movie/{movie_id}/credits", {"api_key": TMDB_API_KEY})
+    data = safe_get(f"{BASE_URL}/movie/{movie_id}/credits",
+                    {"api_key": TMDB_API_KEY})
     return data.get("cast", [])[:6]
 
 def get_providers(movie_id):
-    data = safe_get(f"{BASE_URL}/movie/{movie_id}/watch/providers", {"api_key": TMDB_API_KEY})
+    data = safe_get(f"{BASE_URL}/movie/{movie_id}/watch/providers",
+                    {"api_key": TMDB_API_KEY})
     return data.get("results", {}).get("KE", {})
 
 # =========================
@@ -155,29 +136,19 @@ def display_row(title, endpoint):
         if not poster:
             continue
 
-        title_text = movie.get("title")
-        rating = movie.get("vote_average")
-        year = movie.get("release_date", "")[:4]
-
         with cols[i % 6]:
-
-            # ENTIRE CARD CLICKABLE
-            if st.button("", key=f"card_{movie['id']}"):
-                st.session_state.selected_id = movie["id"]
-                st.rerun()
 
             st.markdown(f"""
             <div class="movie-card">
                 <img src="{IMAGE_BASE + poster}">
-                <div class="play-icon">▶</div>
                 <div class="overlay">
-                    <h4>{title_text}</h4>
-                    <p>⭐ {rating} | {year}</p>
+                    <h4>{movie.get('title')}</h4>
+                    <p>⭐ {movie.get('vote_average')} | {movie.get('release_date','')[:4]}</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-            # VIEW DETAILS BUTTON
+            # CLEAR VIEW BUTTON
             if st.button("View Details", key=f"view_{movie['id']}"):
                 st.session_state.selected_id = movie["id"]
                 st.rerun()
@@ -198,7 +169,6 @@ else:
     display_row("💥 Action", "/discover/movie?with_genres=28")
     display_row("😂 Comedy", "/discover/movie?with_genres=35")
     display_row("👻 Horror", "/discover/movie?with_genres=27")
-    display_row("❤️ Romance", "/discover/movie?with_genres=10749")
 
 # =========================
 # DETAILS PAGE
@@ -252,11 +222,6 @@ if "selected_id" in st.session_state:
                             if p.get("logo_path"):
                                 st.image(LOGO_BASE + p["logo_path"])
                             if providers.get("link"):
-                                st.markdown(f"[Watch Now]({providers['link']})")
-
-        # =========================
-        # BACK TO HOME BUTTON
-        # =========================
-        if st.button("⬅ Back to Home", key="back_home"):
-            del st.session_state.selected_id
-            st.rerun()
+                                st.markdown(
+                                    f"[Watch Now]({providers['link']})"
+                                )
