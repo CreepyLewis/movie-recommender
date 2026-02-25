@@ -12,7 +12,7 @@ LOGO_BASE = "https://image.tmdb.org/t/p/w200"
 st.set_page_config(page_title="Creepy Movie Recommendation", layout="wide")
 
 # =========================
-# NETFLIX DARK STYLE
+# NETFLIX STYLE
 # =========================
 st.markdown("""
 <style>
@@ -20,25 +20,21 @@ st.markdown("""
     background-color: #0e0e0e;
     color: white;
 }
-
 h1,h2,h3,h4 {
     color: white;
 }
-
 .movie-card {
     position: relative;
+    cursor: pointer;
 }
-
 .movie-card img {
     width: 100%;
     border-radius: 10px;
     transition: transform 0.3s ease;
 }
-
 .movie-card:hover img {
     transform: scale(1.05);
 }
-
 .overlay {
     position: absolute;
     bottom: 0;
@@ -49,22 +45,18 @@ h1,h2,h3,h4 {
     transition: opacity 0.3s ease;
     border-radius: 10px;
 }
-
 .movie-card:hover .overlay {
     opacity: 1;
 }
-
 .overlay h4 {
     margin: 0;
     font-size: 14px;
 }
-
 .overlay p {
     margin: 0;
     font-size: 12px;
     color: #ccc;
 }
-
 .view-btn button {
     background-color: #e50914 !important;
     color: white !important;
@@ -78,7 +70,7 @@ h1,h2,h3,h4 {
 st.title("🎬 Creepy Movie Recommendation")
 
 # =========================
-# SAFE API CALL
+# SAFE REQUEST
 # =========================
 def safe_get(url, params):
     try:
@@ -120,7 +112,7 @@ def get_providers(movie_id):
     return data.get("results", {}).get("KE", {})
 
 # =========================
-# MOVIE ROW DISPLAY
+# MOVIE ROW
 # =========================
 def display_row(title, endpoint):
     st.subheader(title)
@@ -138,6 +130,11 @@ def display_row(title, endpoint):
 
         with cols[i % 6]:
 
+            # Entire Card Clickable
+            if st.button("", key=f"card_{movie['id']}"):
+                st.session_state.selected_id = movie["id"]
+                st.rerun()
+
             st.markdown(f"""
             <div class="movie-card">
                 <img src="{IMAGE_BASE + poster}">
@@ -148,7 +145,7 @@ def display_row(title, endpoint):
             </div>
             """, unsafe_allow_html=True)
 
-            # CLEAR VIEW BUTTON
+            # Clear Button
             if st.button("View Details", key=f"view_{movie['id']}"):
                 st.session_state.selected_id = movie["id"]
                 st.rerun()
@@ -180,6 +177,11 @@ if "selected_id" in st.session_state:
 
     if movie:
         st.divider()
+
+        # Back Button
+        if st.button("⬅ Back to Home"):
+            del st.session_state.selected_id
+            st.rerun()
 
         col1, col2 = st.columns([1,2])
 
@@ -222,6 +224,6 @@ if "selected_id" in st.session_state:
                             if p.get("logo_path"):
                                 st.image(LOGO_BASE + p["logo_path"])
                             if providers.get("link"):
-                                st.markdown(
-                                    f"[Watch Now]({providers['link']})"
-                                )
+                                st.markdown(f"[Watch Now]({providers['link']})")
+        else:
+            st.warning("Not available in Kenya.")
