@@ -12,7 +12,7 @@ LOGO_BASE = "https://image.tmdb.org/t/p/w200"
 st.set_page_config(page_title="Creepy Movie Recommendation", layout="wide")
 
 # =========================
-# NETFLIX DARK UI + HOVER
+# NETFLIX DARK STYLE
 # =========================
 st.markdown("""
 <style>
@@ -21,13 +21,12 @@ st.markdown("""
     color: white;
 }
 
-h1,h2,h3,h4,h5 {
+h1,h2,h3,h4 {
     color: white;
 }
 
 .movie-card {
     position: relative;
-    cursor: pointer;
 }
 
 .movie-card img {
@@ -37,14 +36,14 @@ h1,h2,h3,h4,h5 {
 }
 
 .movie-card:hover img {
-    transform: scale(1.08);
+    transform: scale(1.05);
 }
 
 .overlay {
     position: absolute;
     bottom: 0;
     width: 100%;
-    padding: 12px;
+    padding: 10px;
     background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -66,18 +65,12 @@ h1,h2,h3,h4,h5 {
     color: #ccc;
 }
 
-.play-icon {
-    position: absolute;
-    top: 40%;
-    left: 45%;
-    font-size: 40px;
-    color: white;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.movie-card:hover .play-icon {
-    opacity: 1;
+.view-btn button {
+    background-color: #e50914 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
+    width: 100%;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -85,28 +78,18 @@ h1,h2,h3,h4,h5 {
 st.title("🎬 Creepy Movie Recommendation")
 
 # =========================
-# QUERY PARAMS (SAME TAB NAVIGATION)
-# =========================
-query_params = st.query_params
-if "movie_id" in query_params:
-    try:
-        st.session_state.selected_id = int(query_params["movie_id"][0])
-    except:
-        pass
-
-# =========================
-# API FUNCTIONS (SAFE)
+# SAFE API CALL
 # =========================
 def safe_get(url, params):
     try:
         res = requests.get(url, params=params)
-        data = res.json()
-        return data
+        return res.json()
     except:
         return {}
 
 def get_movies(endpoint):
-    data = safe_get(f"{BASE_URL}{endpoint}", {"api_key": TMDB_API_KEY})
+    data = safe_get(f"{BASE_URL}{endpoint}",
+                    {"api_key": TMDB_API_KEY})
     return data.get("results", [])
 
 def search_movies(query):
@@ -114,7 +97,7 @@ def search_movies(query):
                     {"api_key": TMDB_API_KEY, "query": query})
     return data.get("results", [])
 
-def get_movie_details(movie_id):
+def get_movie(movie_id):
     return safe_get(f"{BASE_URL}/movie/{movie_id}",
                     {"api_key": TMDB_API_KEY})
 
@@ -126,18 +109,18 @@ def get_trailer(movie_id):
             return f"https://www.youtube.com/embed/{vid['key']}"
     return None
 
-def get_actors(movie_id):
+def get_cast(movie_id):
     data = safe_get(f"{BASE_URL}/movie/{movie_id}/credits",
                     {"api_key": TMDB_API_KEY})
     return data.get("cast", [])[:6]
 
-def get_watch_providers(movie_id):
+def get_providers(movie_id):
     data = safe_get(f"{BASE_URL}/movie/{movie_id}/watch/providers",
                     {"api_key": TMDB_API_KEY})
     return data.get("results", {}).get("KE", {})
 
 # =========================
-# DISPLAY MOVIE ROW
+# MOVIE ROW DISPLAY
 # =========================
 def display_row(title, endpoint):
     st.subheader(title)
@@ -148,37 +131,37 @@ def display_row(title, endpoint):
 
     cols = st.columns(6)
 
-    for i, movie in enumerate(movies[:18]):
+    for i, movie in enumerate(movies[:12]):
         poster = movie.get("poster_path")
         if not poster:
             continue
 
-        title_text = movie.get("title", "Unknown")
-        rating = movie.get("vote_average", "N/A")
-        year = movie.get("release_date", "")[:4]
-
         with cols[i % 6]:
+
             st.markdown(f"""
-            <div class="movie-card"
-                 onclick="window.location.href='?movie_id={movie['id']}';">
+            <div class="movie-card">
                 <img src="{IMAGE_BASE + poster}">
-                <div class="play-icon">▶</div>
                 <div class="overlay">
-                    <h4>{title_text}</h4>
-                    <p>⭐ {rating} | {year}</p>
+                    <h4>{movie.get('title')}</h4>
+                    <p>⭐ {movie.get('vote_average')} | {movie.get('release_date','')[:4]}</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-# =========================
-# SEARCH BAR
-# =========================
-search_query = st.text_input("🔍 Search for a movie")
+            # CLEAR VIEW BUTTON
+            if st.button("View Details", key=f"view_{movie['id']}"):
+                st.session_state.selected_id = movie["id"]
+                st.rerun()
 
-if search_query:
-    movies = search_movies(search_query)
-    if movies:
-        display_row("Search Results", f"/search/movie?query={search_query}")
+# =========================
+# SEARCH
+# =========================
+search = st.text_input("🔍 Search for a movie")
+
+if search:
+    results = search_movies(search)
+    if results:
+        display_row("Search Results", f"/search/movie?query={search}")
     else:
         st.warning("No movies found.")
 else:
@@ -186,15 +169,14 @@ else:
     display_row("💥 Action", "/discover/movie?with_genres=28")
     display_row("😂 Comedy", "/discover/movie?with_genres=35")
     display_row("👻 Horror", "/discover/movie?with_genres=27")
-    display_row("❤️ Romance", "/discover/movie?with_genres=10749")
 
 # =========================
-# MOVIE DETAILS PAGE
+# DETAILS PAGE
 # =========================
 if "selected_id" in st.session_state:
 
     movie_id = st.session_state.selected_id
-    movie = get_movie_details(movie_id)
+    movie = get_movie(movie_id)
 
     if movie:
         st.divider()
@@ -206,12 +188,11 @@ if "selected_id" in st.session_state:
                 st.image(IMAGE_BASE + movie["poster_path"])
 
         with col2:
-            st.subheader(movie.get("title", "Unknown"))
-            st.write(f"⭐ Rating: {movie.get('vote_average','N/A')}")
-            st.write(f"📅 Release: {movie.get('release_date','N/A')}")
-            st.write(movie.get("overview","No description available."))
+            st.subheader(movie.get("title"))
+            st.write(f"⭐ Rating: {movie.get('vote_average')}")
+            st.write(f"📅 Release: {movie.get('release_date')}")
+            st.write(movie.get("overview"))
 
-        # Trailer
         trailer = get_trailer(movie_id)
         if trailer:
             st.markdown("### ▶ Trailer")
@@ -220,8 +201,7 @@ if "selected_id" in st.session_state:
                 unsafe_allow_html=True
             )
 
-        # Actors
-        cast = get_actors(movie_id)
+        cast = get_cast(movie_id)
         if cast:
             st.markdown("### 🎭 Top Cast")
             cols = st.columns(len(cast))
@@ -229,13 +209,11 @@ if "selected_id" in st.session_state:
                 with cols[i]:
                     if actor.get("profile_path"):
                         st.image(IMAGE_BASE + actor["profile_path"])
-                    st.caption(actor.get("name",""))
+                    st.caption(actor.get("name"))
 
-        # Watch Providers
-        providers = get_watch_providers(movie_id)
+        providers = get_providers(movie_id)
         if providers:
             st.markdown("### 📺 Available in Kenya")
-
             for section in ["flatrate","rent","buy"]:
                 if section in providers:
                     cols = st.columns(len(providers[section]))
@@ -247,5 +225,3 @@ if "selected_id" in st.session_state:
                                 st.markdown(
                                     f"[Watch Now]({providers['link']})"
                                 )
-        else:
-            st.warning("Not available in Kenya.")
