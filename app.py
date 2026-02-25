@@ -79,11 +79,68 @@ def get_movie_full(movie_id):
     )
 
 def get_watch_providers(movie_id):
-    data = safe_request(
-        f"{BASE_URL}/movie/{movie_id}/watch/providers",
-        {"api_key": API_KEY}
-    )
+    url = f"{BASE_URL}/movie/{movie_id}/watch/providers"
+    params = {"api_key": API_KEY}
+
+    data = safe_request(url, params)
     return data.get("results", {}).get("KE")
+
+# ===============================
+# WATCH PROVIDERS (KENYA)
+# ===============================
+providers = get_watch_providers(movie_id)
+
+st.subheader("📺 Available in Kenya 🇰🇪")
+
+if providers:
+
+    # Direct link to TMDB provider page
+    watch_link = providers.get("link")
+
+    def display_provider_section(title, provider_list):
+        if provider_list:
+            st.markdown(f"#### {title}")
+            cols = st.columns(len(provider_list))
+
+            for i, provider in enumerate(provider_list):
+                with cols[i]:
+                    logo_path = provider.get("logo_path")
+                    provider_name = provider.get("provider_name")
+
+                    if logo_path:
+                        st.image(LOGO_BASE + logo_path, width=80)
+
+                    st.caption(provider_name)
+
+                    if watch_link:
+                        st.markdown(
+                            f"""
+                            <a href="{watch_link}" target="_blank">
+                                <button style="
+                                    background-color:#E50914;
+                                    color:white;
+                                    border:none;
+                                    padding:6px 12px;
+                                    border-radius:4px;
+                                    cursor:pointer;">
+                                    Watch Now
+                                </button>
+                            </a>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
+    # Streaming (Subscription)
+    display_provider_section("🎬 Streaming", providers.get("flatrate"))
+
+    # Rent
+    display_provider_section("💰 Rent", providers.get("rent"))
+
+    # Buy
+    display_provider_section("🛒 Buy", providers.get("buy"))
+
+else:
+    st.info("❌ This movie is currently not available on major streaming platforms in Kenya.")
 
 # ===============================
 # MOVIE PAGE
