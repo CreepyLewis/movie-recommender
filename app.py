@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 
+
 # ===============================
 # PWA META (ADDED - DO NOT REMOVE)
 # ===============================
@@ -26,9 +27,12 @@ LOGO_BASE = "https://image.tmdb.org/t/p/w200"
 # MOBILE DETECTION
 # ===============================
 def is_mobile():
+    # Simple responsive approach
     return st.runtime.exists() and st.runtime.scriptrunner is not None
 
+# We'll control layout manually instead
 def get_column_count():
+    # 2 columns feels best on mobile
     return 2 if st.session_state.get("mobile", False) else 6
 
 # ===============================
@@ -148,6 +152,7 @@ if st.session_state.page == "movie":
 
     st.title(movie.get("title", "Unknown"))
 
+    # Vertical layout works best for mobile
     if movie.get("poster_path"):
         st.image(IMAGE_BASE + movie["poster_path"])
 
@@ -157,6 +162,7 @@ if st.session_state.page == "movie":
     if movie.get("runtime"):
         st.write(f"⏱ Runtime: {movie.get('runtime')} mins")
 
+    # Trailer
     videos = movie.get("videos", {}).get("results", [])
     trailer = None
     for v in videos:
@@ -168,6 +174,7 @@ if st.session_state.page == "movie":
         st.subheader("🎬 Trailer")
         st.video(f"https://www.youtube.com/watch?v={trailer}")
 
+    # Cast
     cast = movie.get("credits", {}).get("cast", [])[:6]
     if cast:
         st.subheader("🎭 Cast")
@@ -178,6 +185,7 @@ if st.session_state.page == "movie":
                     st.image(IMAGE_BASE + actor["profile_path"])
                 st.caption(actor.get("name"))
 
+    # Providers
     providers = get_watch_providers(movie_id)
 
     st.subheader("📺 Available in Kenya 🇰🇪")
