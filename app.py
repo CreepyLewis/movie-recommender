@@ -1,225 +1,217 @@
 import streamlit as st
 import requests
 
-# ==============================
+# =========================
 # CONFIG
-# ==============================
-st.set_page_config(layout="wide")
+# =========================
+TMDB_API_KEY = st.secrets["TMDB_API_KEY"]
+BASE_URL = "https://api.themoviedb.org/3"
+IMAGE_URL = "https://image.tmdb.org/t/p/w500"
+LOGO_URL = "https://image.tmdb.org/t/p/w200"
 
-API_KEY = ""1de86708fb3664f97fa0383b34df3080""
+st.set_page_config(page_title="Creepy Movie Recommendation", layout="wide")
 
-# ==============================
-# CSS (DESKTOP + MOBILE)
-# ==============================
+# =========================
+# DEVICE DETECTION (Mobile Only CSS)
+# =========================
 st.markdown("""
 <style>
-
-/* Global */
-body {
-    background-color: #0d0d0d;
+/* Default desktop styling (unchanged) */
+.stApp {
+    background-color: #0e0e0e;
     color: white;
 }
-
-/* Movie poster hover (Desktop only) */
-@media (min-width: 769px) {
-    .movie-poster:hover {
-        transform: scale(1.07);
-        transition: 0.3s ease-in-out;
-        cursor: pointer;
-    }
+h1,h2,h3,h4 {
+    color: white;
 }
-
-/* Mobile Optimization */
-@media (max-width: 768px) {
-    .actor-scroll {
-        display: flex;
-        overflow-x: auto;
-        gap: 15px;
-        padding-bottom: 10px;
-        scroll-snap-type: x mandatory;
-    }
-    .actor-card {
-        min-width: 120px;
-        text-align: center;
-        scroll-snap-align: start;
-    }
-    .actor-scroll::-webkit-scrollbar {
-        display: none;
-    }
+img {
+    border-radius: 10px;
+    transition: transform 0.3s;
+}
+img:hover {
+    transform: scale(1.08);
+    cursor: pointer;
 }
 
 /* Red Buttons */
-.stButton>button {
+div.stButton > button {
     background-color: #e50914;
     color: white;
+    border: none;
     border-radius: 6px;
-    font-weight: bold;
+}
+div.stButton > button:hover {
+    background-color: #ff1e2d;
 }
 
+/* 📱 MOBILE ONLY */
+@media (max-width: 768px) {
+
+    h1 {
+        font-size: 22px !important;
+    }
+
+    h2 {
+        font-size: 18px !important;
+    }
+
+    .stButton > button {
+        width: 100%;
+        font-size: 14px;
+    }
+
+    img {
+        border-radius: 6px;
+    }
+
+}
 </style>
 """, unsafe_allow_html=True)
 
-# ==============================
-# TMDB FUNCTIONS
-# ==============================
-def safe_get(url, params):
-    response = requests.get(url, params=params)
-    data = response.json()
-    return data if isinstance(data, dict) else {}
+st.title("🎬 Creepy Movie Recommendation")
 
-def get_popular_movies():
-    url = "https://api.themoviedb.org/3/movie/popular"
-    params = {"api_key": API_KEY}
-    data = safe_get(url, params)
+# =========================
+# API FUNCTIONS
+# =========================
+def safe_get(url, params):
+    try:
+        r = requests.get(url, params=params)
+        return r.json()
+    except:
+        return {}
+
+def get_movies(endpoint):
+    data = safe_get(f"{BASE_URL}{endpoint}", {"api_key": TMDB_API_KEY})
     return data.get("results", [])
 
 def search_movies(query):
-    url = "https://api.themoviedb.org/3/search/movie"
-    params = {"api_key": API_KEY, "query": query}
-    data = safe_get(url, params)
+    data = safe_get(f"{BASE_URL}/search/movie",
+                    {"api_key": TMDB_API_KEY, "query": query})
     return data.get("results", [])
 
 def get_movie_details(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}"
-    params = {"api_key": API_KEY}
-    return safe_get(url, params)
+    return safe_get(f"{BASE_URL}/movie/{movie_id}",
+                    {"api_key": TMDB_API_KEY})
 
-def get_movie_credits(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}/credits"
-    params = {"api_key": API_KEY}
-    data = safe_get(url, params)
-    return data.get("cast", [])
-
-def get_movie_trailer(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}/videos"
-    params = {"api_key": API_KEY}
-    data = safe_get(url, params)
-    for video in data.get("results", []):
-        if video["type"] == "Trailer" and video["site"] == "YouTube":
-            return f"https://www.youtube.com/embed/{video['key']}"
+def get_trailer(movie_id):
+    data = safe_get(f"{BASE_URL}/movie/{movie_id}/videos",
+                    {"api_key": TMDB_API_KEY})
+    for vid in data.get("results", []):
+        if vid.get("type") == "Trailer" and vid.get("site") == "YouTube":
+            return f"https://www.youtube.com/embed/{vid['key']}"
     return None
 
 def get_watch_providers(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}/watch/providers"
-    params = {"api_key": API_KEY}
-    data = safe_get(url, params)
+    data = safe_get(f"{BASE_URL}/movie/{movie_id}/watch/providers",
+                    {"api_key": TMDB_API_KEY})
     return data.get("results", {}).get("KE", {})
 
-# ==============================
-# SESSION STATE
-# ==============================
-if "selected_movie" not in st.session_state:
-    st.session_state.selected_movie = None
+def get_actors(movie_id):
+    data = safe_get(f"{BASE_URL}/movie/{movie_id}/credits",
+                    {"api_key": TMDB_API_KEY})
+    return data.get("cast", [])[:6]
 
-# ==============================
-# HOME PAGE
-# ==============================
-if st.session_state.selected_movie is None:
+# =========================
+# DISPLAY ROW
+# =========================
+def display_row(title, movies):
+    st.subheader(title)
+    cols = st.columns(6)
 
-    st.title("🎬 Creepy Movie Recommendation")
+    for i, movie in enumerate(movies[:12]):
+        poster = movie.get("poster_path")
+        if poster:
+            with cols[i % 6]:
+                st.image(IMAGE_URL + poster)
+                if st.button("View Details", key=f"view_{movie['id']}"):
+                    st.session_state.selected_id = movie["id"]
+                    st.rerun()
 
-    search_query = st.text_input("Search for a movie")
+# =========================
+# MAIN NAVIGATION
+# =========================
+if "selected_id" not in st.session_state:
 
-    if search_query:
-        movies = search_movies(search_query)
+    query = st.text_input("🔍 Search movies")
+
+    if query:
+        results = search_movies(query)
+        display_row("Search Results", results)
     else:
-        movies = get_popular_movies()
+        popular = get_movies("/movie/popular")
+        action = get_movies("/discover/movie?with_genres=28")
+        comedy = get_movies("/discover/movie?with_genres=35")
+        horror = get_movies("/discover/movie?with_genres=27")
+        romance = get_movies("/discover/movie?with_genres=10749")
 
-    cols = st.columns(5)
+        display_row("🔥 Popular Now", popular)
+        display_row("💥 Action", action)
+        display_row("😂 Comedy", comedy)
+        display_row("👻 Horror", horror)
+        display_row("❤️ Romance", romance)
 
-    for index, movie in enumerate(movies):
-        with cols[index % 5]:
-            poster_path = movie.get("poster_path")
-            if poster_path:
-                poster = f"https://image.tmdb.org/t/p/w500{poster_path}"
-                st.markdown(
-                    f"""
-                    <img src="{poster}" width="100%" class="movie-poster">
-                    """,
-                    unsafe_allow_html=True
-                )
-
-            if st.button("View Details", key=movie["id"]):
-                st.session_state.selected_movie = movie["id"]
-                st.rerun()
-
-# ==============================
+# =========================
 # MOVIE DETAILS PAGE
-# ==============================
+# =========================
 else:
-    movie_id = st.session_state.selected_movie
-    details = get_movie_details(movie_id)
-    cast = get_movie_credits(movie_id)
-    trailer = get_movie_trailer(movie_id)
-    providers = get_watch_providers(movie_id)
+
+    movie_id = st.session_state.selected_id
+    movie = get_movie_details(movie_id)
 
     if st.button("⬅ Back Home"):
-        st.session_state.selected_movie = None
+        del st.session_state.selected_id
         st.rerun()
+
+    st.divider()
+    st.header(movie.get("title", "Unknown"))
 
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        if details.get("poster_path"):
-            poster = f"https://image.tmdb.org/t/p/w500{details['poster_path']}"
-            st.image(poster)
+        if movie.get("poster_path"):
+            st.image(IMAGE_URL + movie["poster_path"])
 
     with col2:
-        st.title(details.get("title", "No Title"))
-        st.write(details.get("overview", "No description available."))
-        st.write("⭐ Rating:", details.get("vote_average", "N/A"))
-        st.write("📅 Release Date:", details.get("release_date", "N/A"))
+        st.write(f"⭐ Rating: {movie.get('vote_average', 'N/A')}")
+        st.write(f"📅 Release: {movie.get('release_date', 'N/A')}")
+        st.write(movie.get("overview", "No description available."))
 
     # Trailer
+    trailer = get_trailer(movie_id)
     if trailer:
-        st.markdown("## 🎥 Trailer")
+        st.markdown("### ▶ Trailer")
         st.markdown(
-            f"""
-            <iframe width="100%" height="400"
-            src="{trailer}"
-            frameborder="0"
-            allowfullscreen></iframe>
-            """,
+            f'<iframe width="100%" height="400" src="{trailer}" frameborder="0" allowfullscreen></iframe>',
             unsafe_allow_html=True
         )
 
-    # Cast
-    st.markdown("## 🎭 Cast")
+    # Actors
+    actors = get_actors(movie_id)
+    if actors:
+        st.markdown("### 🎭 Top Cast")
+        cols = st.columns(len(actors))
+        for i, actor in enumerate(actors):
+            with cols[i]:
+                if actor.get("profile_path"):
+                    st.image(IMAGE_URL + actor["profile_path"])
+                st.caption(actor.get("name", ""))
 
-    st.markdown('<div class="actor-scroll">', unsafe_allow_html=True)
-
-    for actor in cast[:10]:
-        if actor.get("profile_path"):
-            actor_img = f"https://image.tmdb.org/t/p/w200{actor['profile_path']}"
-            st.markdown(
-                f"""
-                <div class="actor-card">
-                    <img src="{actor_img}" width="100">
-                    <p style="color:white;font-size:14px;">{actor['name']}</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Watch Providers
-    st.markdown("## 📺 Available On")
+    # Providers
+    providers = get_watch_providers(movie_id)
+    st.markdown("### 📺 Available in Kenya")
 
     if providers:
-        link = providers.get("link")
-
-        for category in ["flatrate", "free", "ads"]:
+        for category in ["flatrate", "rent", "buy"]:
             if category in providers:
-                for provider in providers[category]:
-                    logo = f"https://image.tmdb.org/t/p/w200{provider['logo_path']}"
-                    st.markdown(
-                        f"""
-                        <a href="{link}" target="_blank">
-                            <img src="{logo}" width="80">
-                        </a>
-                        """,
-                        unsafe_allow_html=True
-                    )
+                cols = st.columns(len(providers[category]))
+                for i, p in enumerate(providers[category]):
+                    with cols[i]:
+                        if p.get("logo_path"):
+                            st.image(LOGO_URL + p["logo_path"])
+                        if providers.get("link"):
+                            st.markdown(
+                                f"[Watch Now]({providers['link']})",
+                                unsafe_allow_html=True
+                            )
     else:
-        st.info("Streaming availability data not available for Kenya.")
+        st.warning("Not available in Kenya.")
