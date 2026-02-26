@@ -1,10 +1,9 @@
 import streamlit as st
 import requests
 
-# ==============================
-# ✅ PWA + MOBILE META (ADDED)
-# ==============================
-
+# ===============================
+# PWA META (ADDED - DO NOT REMOVE)
+# ===============================
 st.markdown("""
 <link rel="manifest" href="/static/manifest.json">
 <meta name="theme-color" content="#E50914">
@@ -12,183 +11,255 @@ st.markdown("""
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 """, unsafe_allow_html=True)
 
-# ==============================
-# SETTINGS
-# ==============================
+# ===============================
+# CONFIG
+# ===============================
+st.set_page_config(page_title="Creepy - Kenya Movie Discovery", layout="wide")
 
-API_KEY = "YOUR_TMDB_API_KEY"
+API_KEY = st.secrets["TMDB_API_KEY"]
 BASE_URL = "https://api.themoviedb.org/3"
-IMG_URL = "https://image.tmdb.org/t/p/w500"
+IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
+BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280"
+LOGO_BASE = "https://image.tmdb.org/t/p/w200"
 
-st.set_page_config(layout="wide", page_title="Creepy Movies")
+# ===============================
+# MOBILE DETECTION
+# ===============================
+def is_mobile():
+    return st.runtime.exists() and st.runtime.scriptrunner is not None
 
-# ==============================
-# FUNCTIONS
-# ==============================
+def get_column_count():
+    return 2 if st.session_state.get("mobile", False) else 6
 
-def search_movies(query):
-    url = f"{BASE_URL}/search/movie?api_key={API_KEY}&query={query}"
-    return requests.get(url).json().get("results", [])
-
-def get_popular():
-    url = f"{BASE_URL}/movie/popular?api_key={API_KEY}"
-    return requests.get(url).json().get("results", [])
-
-def get_movie_details(movie_id):
-    url = f"{BASE_URL}/movie/{movie_id}?api_key={API_KEY}&append_to_response=credits,videos"
-    return requests.get(url).json()
-
-def get_watch_providers(movie_id):
-    url = f"{BASE_URL}/movie/{movie_id}/watch/providers?api_key={API_KEY}"
-    data = requests.get(url).json()
-    return data.get("results", {}).get("KE", {})  # Kenya region
-
-# ==============================
-# SESSION STATE
-# ==============================
-
-if "selected_movie" not in st.session_state:
-    st.session_state.selected_movie = None
-
-# ==============================
-# DARK NETFLIX STYLE
-# ==============================
-
+# ===============================
+# NETFLIX DARK UI + MOBILE CSS
+# ===============================
 st.markdown("""
 <style>
-body {background-color: #000000;}
-h1, h2, h3, p {color: white;}
+.stApp {
+    background-color: #141414;
+    color: white;
+}
 
-.movie-card {
-    text-align:center;
+h1,h2,h3,h4 {
+    color: white;
 }
-.red-btn {
-    background-color:#E50914;
-    color:white;
-    padding:8px 16px;
-    border:none;
-    border-radius:5px;
-    text-decoration:none;
-    font-weight:bold;
+
+img {
+    border-radius: 8px;
+    transition: transform 0.3s ease;
+    width: 100%;
 }
-.red-btn:hover {
-    background-color:#b20710;
+img:hover {
+    transform: scale(1.05);
+}
+
+/* Red Buttons */
+.stButton>button {
+    background-color: #E50914;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1rem;
+    font-weight: bold;
+    width: 100%;
+}
+.stButton>button:hover {
+    background-color: #b20710;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .block-container {
+        padding-top: 1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    h1 { font-size: 24px; }
+    h2 { font-size: 20px; }
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ==============================
-# HOME PAGE
-# ==============================
+# ===============================
+# SESSION STATE
+# ===============================
+if "page" not in st.session_state:
+    st.session_state.page = "home"
 
-if st.session_state.selected_movie is None:
+if "selected_movie" not in st.session_state:
+    st.session_state.selected_movie = None
 
-    st.title("🎬 Creepy Movie Recommendation")
+# ===============================
+# SAFE REQUEST
+# ===============================
+def safe_request(url, params):
+    try:
+        r = requests.get(url, params=params)
+        if r.status_code == 200:
+            return r.json()
+        return {}
+    except:
+        return {}
 
-    # Search
-    query = st.text_input("Search for a movie")
+# ===============================
+# API FUNCTIONS
+# ===============================
+def get_movies(endpoint):
+    data = safe_request(f"{BASE_URL}{endpoint}", {"api_key": API_KEY})
+    return data.get("results", [])
 
-    if query:
-        movies = search_movies(query)
-    else:
-        movies = get_popular()
+def search_movies(query):
+    data = safe_request(
+        f"{BASE_URL}/search/movie",
+        {"api_key": API_KEY, "query": query}
+    )
+    return data.get("results", [])
 
-    cols = st.columns(4)
+def get_movie_full(movie_id):
+    return safe_request(
+        f"{BASE_URL}/movie/{movie_id}",
+        {"api_key": API_KEY, "append_to_response": "credits,videos"}
+    )
 
-    for index, movie in enumerate(movies):
-        if movie.get("poster_path"):
-            with cols[index % 4]:
-                st.markdown('<div class="movie-card">', unsafe_allow_html=True)
+def get_watch_providers(movie_id):
+    data = safe_request(
+        f"{BASE_URL}/movie/{movie_id}/watch/providers",
+        {"api_key": API_KEY}
+    )
+    return data.get("results", {}).get("KE")
 
-                # Clickable Poster
-                if st.button("", key=movie["id"]):
-                    st.session_state.selected_movie = movie["id"]
-                    st.rerun()
-
-                st.image(IMG_URL + movie["poster_path"])
-
-                # View Details Button (Red)
-                if st.button("View Details", key=f"view_{movie['id']}"):
-                    st.session_state.selected_movie = movie["id"]
-                    st.rerun()
-
-                st.markdown('</div>', unsafe_allow_html=True)
-
-# ==============================
-# DETAILS PAGE (Same Tab)
-# ==============================
-
-else:
+# ===============================
+# MOVIE PAGE
+# ===============================
+if st.session_state.page == "movie":
 
     movie_id = st.session_state.selected_movie
-    details = get_movie_details(movie_id)
-    providers = get_watch_providers(movie_id)
+    movie = get_movie_full(movie_id)
 
-    # Back Home Button (Red)
-    if st.button("⬅ Back Home"):
+    if st.button("⬅ Back to Home"):
+        st.session_state.page = "home"
         st.session_state.selected_movie = None
         st.rerun()
 
-    st.title(details.get("title"))
+    if movie.get("backdrop_path"):
+        st.image(BACKDROP_BASE + movie["backdrop_path"], use_container_width=True)
 
-    col1, col2 = st.columns([1,2])
+    st.title(movie.get("title", "Unknown"))
 
-    with col1:
-        if details.get("poster_path"):
-            st.image(IMG_URL + details["poster_path"])
+    if movie.get("poster_path"):
+        st.image(IMAGE_BASE + movie["poster_path"])
 
-    with col2:
-        st.write(details.get("overview"))
-        st.write("⭐ Rating:", details.get("vote_average"))
+    st.write(movie.get("overview", "No description available."))
+    st.write(f"⭐ Rating: {movie.get('vote_average', 'N/A')}")
+    st.write(f"📅 Release: {movie.get('release_date', 'N/A')}")
+    if movie.get("runtime"):
+        st.write(f"⏱ Runtime: {movie.get('runtime')} mins")
 
-    # ==========================
-    # ACTORS
-    # ==========================
-
-    st.subheader("Cast")
-
-    cast = details.get("credits", {}).get("cast", [])[:6]
-    cast_cols = st.columns(6)
-
-    for i, actor in enumerate(cast):
-        with cast_cols[i]:
-            if actor.get("profile_path"):
-                st.image("https://image.tmdb.org/t/p/w200" + actor["profile_path"])
-            st.write(actor.get("name"))
-
-    # ==========================
-    # TRAILER
-    # ==========================
-
-    st.subheader("Trailer")
-
-    videos = details.get("videos", {}).get("results", [])
-    for video in videos:
-        if video["type"] == "Trailer" and video["site"] == "YouTube":
-            st.video(f"https://www.youtube.com/watch?v={video['key']}")
+    videos = movie.get("videos", {}).get("results", [])
+    trailer = None
+    for v in videos:
+        if v.get("type") == "Trailer" and v.get("site") == "YouTube":
+            trailer = v.get("key")
             break
 
-    # ==========================
-    # WATCH PROVIDERS
-    # ==========================
+    if trailer:
+        st.subheader("🎬 Trailer")
+        st.video(f"https://www.youtube.com/watch?v={trailer}")
 
-    st.subheader("Available On")
+    cast = movie.get("credits", {}).get("cast", [])[:6]
+    if cast:
+        st.subheader("🎭 Cast")
+        cols = st.columns(3)
+        for i, actor in enumerate(cast):
+            with cols[i % 3]:
+                if actor.get("profile_path"):
+                    st.image(IMAGE_BASE + actor["profile_path"])
+                st.caption(actor.get("name"))
+
+    providers = get_watch_providers(movie_id)
+
+    st.subheader("📺 Available in Kenya 🇰🇪")
 
     if providers:
-        for provider_type in ["flatrate", "free", "ads", "rent", "buy"]:
-            if provider_type in providers:
-                st.write(f"### {provider_type.capitalize()}")
-                prov_cols = st.columns(6)
+        watch_link = providers.get("link")
 
-                for i, provider in enumerate(providers[provider_type]):
-                    with prov_cols[i % 6]:
-                        logo = "https://image.tmdb.org/t/p/w200" + provider["logo_path"]
-                        st.image(logo, width=80)
-                        st.write(provider["provider_name"])
-                        if "link" in providers:
+        def display_provider_section(title, provider_list):
+            if provider_list:
+                st.markdown(f"#### {title}")
+                cols = st.columns(3)
+                for i, provider in enumerate(provider_list):
+                    with cols[i % 3]:
+                        if provider.get("logo_path"):
+                            st.image(LOGO_BASE + provider["logo_path"], width=80)
+                        st.caption(provider.get("provider_name"))
+
+                        if watch_link:
                             st.markdown(
-                                f'<a href="{providers["link"]}" target="_blank" class="red-btn">Watch Now</a>',
+                                f"""
+                                <a href="{watch_link}" target="_blank">
+                                    <button style="
+                                        background-color:#E50914;
+                                        color:white;
+                                        border:none;
+                                        padding:6px 12px;
+                                        border-radius:4px;">
+                                        Watch Now
+                                    </button>
+                                </a>
+                                """,
                                 unsafe_allow_html=True
                             )
+
+        display_provider_section("🎬 Streaming", providers.get("flatrate"))
+        display_provider_section("💰 Rent", providers.get("rent"))
+        display_provider_section("🛒 Buy", providers.get("buy"))
     else:
-        st.info("No streaming information available in your region.")
+        st.info("❌ This movie is currently not available in Kenya.")
+
+# ===============================
+# HOME PAGE
+# ===============================
+else:
+
+    st.title("🎬 Creepy - Kenya Movie Discovery")
+
+    query = st.text_input("🔍 Search for a movie")
+
+    if query:
+        results = search_movies(query)
+
+        if results:
+            st.subheader("Search Results")
+            cols = st.columns(2)
+            for i, movie in enumerate(results[:12]):
+                with cols[i % 2]:
+                    if movie.get("poster_path"):
+                        st.image(IMAGE_BASE + movie["poster_path"])
+                    if st.button("View Details", key=f"search_{movie['id']}"):
+                        st.session_state.selected_movie = movie["id"]
+                        st.session_state.page = "movie"
+                        st.rerun()
+        else:
+            st.warning("No movies found.")
+
+    else:
+
+        def display_row(title, endpoint):
+            st.subheader(title)
+            movies = get_movies(endpoint)
+            cols = st.columns(2)
+            for i, movie in enumerate(movies[:18]):
+                with cols[i % 2]:
+                    if movie.get("poster_path"):
+                        st.image(IMAGE_BASE + movie["poster_path"])
+                    if st.button("View Details", key=f"{title}_{movie['id']}"):
+                        st.session_state.selected_movie = movie["id"]
+                        st.session_state.page = "movie"
+                        st.rerun()
+
+        display_row("🔥 Popular", "/movie/popular")
+        display_row("💥 Action", "/discover/movie?with_genres=28")
+        display_row("😂 Comedy", "/discover/movie?with_genres=35")
+        display_row("👻 Horror", "/discover/movie?with_genres=27")
