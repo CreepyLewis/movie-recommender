@@ -1,17 +1,6 @@
 import streamlit as st
 import requests
 
-
-# ===============================
-# PWA META (ADDED - DO NOT REMOVE)
-# ===============================
-st.markdown("""
-<link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#E50914">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-""", unsafe_allow_html=True)
-
 # ===============================
 # CONFIG
 # ===============================
