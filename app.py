@@ -6,7 +6,7 @@ import requests
 # ==============================
 st.set_page_config(layout="wide")
 
-API_KEY = "YOUR_TMDB_API_KEY"
+API_KEY = ""1de86708fb3664f97fa0383b34df3080""
 
 # ==============================
 # CSS (DESKTOP + MOBILE)
