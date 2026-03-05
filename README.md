@@ -1,9 +1,3 @@
-
----
-
-# 🎬 Movie Recommender — Professional README
-
-```markdown
 # 🎬 Movie Recommender
 
 ![GitHub Repo Size](https://img.shields.io/github/repo-size/yourusername/movie-recommender)
