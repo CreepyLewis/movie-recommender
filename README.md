@@ -1,4 +1,3 @@
-
 ---
 
 # 🎬 Movie Recommender README
